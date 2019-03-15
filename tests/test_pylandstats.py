@@ -338,3 +338,109 @@ class TestSpatioTemporalAnalysis(unittest.TestCase):
         # returned axes must be instances of matplotlib axes
         for ax in axes:
             self.assertIsInstance(ax, plt.Axes)
+
+
+class TestMultiSpatioTemporalAnalysis(unittest.TestCase):
+    def setUp(self):
+        self.landscape_list_dict = {
+            res: [
+                pls.Landscape(np.load(fp), res=(res, res)) for fp in [
+                    'tests/input_data/ls{}_06.npy'.format(res),
+                    'tests/input_data/ls{}_12.npy'.format(res)
+                ]
+            ]
+            for res in [100, 250]
+        }
+        self.landscape_fp_dict = {
+            res: [
+                'tests/input_data/ls{}_06.tif'.format(res),
+                'tests/input_data/ls{}_12.tif'.format(res)
+            ]
+            for res in [100, 250]
+        }
+        self.dates = [2006, 2012]
+        self.inexistent_class_val = 999
+
+    def test_multispatiotemporalanalysis_init(self):
+        # test constructing a `MultiSpatioTemporalAnalysis` from a dict that
+        # maps each factor to a list of `Landscape` instances or to a list of
+        # filepaths
+        for landscape_dict in [
+                self.landscape_list_dict, self.landscape_fp_dict
+        ]:
+            # construct an instance without arguments
+            msta = pls.MultiSpatioTemporalAnalysis(landscape_dict)
+            first_sta = next(iter(msta.landscape_dict.values()))
+            # test that the dict values are `SpatioTemporalAnalysis`
+            self.assertIsInstance(first_sta, pls.SpatioTemporalAnalysis)
+
+            # test that the arguments are passed to
+            # `SpatioTemporalAnalysis.__init__` and that they raise the
+            # corresponding errors
+            self.assertRaises(ValueError, pls.MultiSpatioTemporalAnalysis,
+                              landscape_dict, dates=[2012])
+            self.assertRaises(ValueError, pls.MultiSpatioTemporalAnalysis,
+                              landscape_dict, metrics=['foo'])
+            self.assertRaises(ValueError, pls.MultiSpatioTemporalAnalysis,
+                              landscape_dict,
+                              classes=[self.inexistent_class_val])
+
+        # note that we do not test constructing a `MultiSpatioTemporalAnalysis`
+        # from a dict that maps each factor to `SpatioTemporalAnalysis`
+        # instances, since in such case, `MultiSpatioTemporalAnalysis.__init__`
+        # ignores the rest of arguments
+
+    def test_multispatiotemporal_plot_metric(self):
+        # test plotting a `MultiSpatioTemporalAnalysis` from a dict that maps
+        # each factor to a list of `Landscape` instances or to a list of
+        # filepaths
+        for landscape_dict in [
+                self.landscape_list_dict, self.landscape_fp_dict
+        ]:
+            msta = pls.MultiSpatioTemporalAnalysis(landscape_dict)
+            first_sta = next(iter(msta.landscape_dict.values()))
+            # plot a 'random' metric
+            ax = msta.plot_metric('patch_density')
+            # test that the plotted line of each factor has a data point for
+            # each landscape of the `SpatioTemporalAnalysis`
+            for line in ax.lines:
+                self.assertEqual(len(line.get_xdata()), len(first_sta))
+
+        # now test constructing a `MultiSpatioTemporalAnalysis` from a dict
+        # that maps each factor to `SpatioTemporalAnalysis` instances. Note
+        # that in this case, `MultiSpatioTemporalAnalysis.__init__` will
+        # ignore the rest of arguments, and it is the user's responsability to
+        # correctly construct each of the `SpatioTemporalAnalysis` instances.
+        # In this test, we will construct a dummy `SpatioTemporalAnalysis`
+        # with only one snapshot for the 100 resolution, and another
+        # `SpatioTemporalAnalysis` with two snapshots for the 250 resolution.
+        landscape_sta_dict = {
+            100:
+            pls.SpatioTemporalAnalysis(['tests/input_data/ls100_06.tif']),
+            250:
+            pls.SpatioTemporalAnalysis([
+                'tests/input_data/ls250_06.tif',
+                'tests/input_data/ls250_12.tif'
+            ])
+        }
+        msta = pls.MultiSpatioTemporalAnalysis(landscape_sta_dict)
+        ax = msta.plot_metric('patch_density')
+        # test that the plotted line of each factor has a data point for
+        # each landscape of ITS RESPECTIVE `SpatioTemporalAnalysis` - note
+        # that in this case, the first `SpatioTemporalAnalysis` will have a
+        # `len` of 1, whereas the second will have a `len` of 2.
+        for sta, line in zip(msta.landscape_dict.values(), ax.lines):
+            self.assertEqual(len(line.get_xdata()), len(sta))
+
+        # test that we do not have labels with `factor_label=False`
+        self.assertTrue(ax.get_legend_handles_labels()[1])
+        ax = msta.plot_metric('patch_density', factor_legend=False)
+        self.assertFalse(ax.get_legend_handles_labels()[1])
+
+        # very basic test for plot metrics
+        fig, axes = msta.plot_metrics(
+            metrics=['edge_density', 'patch_density'])
+        self.assertEqual(len(axes), 2)
+        for ax in axes:
+            for sta, line in zip(msta.landscape_dict.values(), ax.lines):
+                self.assertEqual(len(line.get_xdata()), len(sta))
