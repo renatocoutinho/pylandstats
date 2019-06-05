@@ -405,9 +405,18 @@ class TestMultiLandscape(unittest.TestCase):
                 else:
                     self.assertLess(class_metrics['total_area'],
                                     class_metrics_kws['total_area'])
+                    # the `total_edge` comparison needs some slack (hence the
+                    # `1.001 *`), since classes might have no adjacency with
+                    # the boundary at all and in such case `total_edge` would
+                    # therefore have to be exactly the same for
+                    # `count_boundary=True` and `count_boundary=False`. But
+                    # because of issues with floats as well as non-exact pixel
+                    # resolutions in the raster files of different years, it
+                    # could even be that `count_boundary=False` yields a
+                    # greater value
                     self.assertLessEqual(
                         class_metrics['total_edge'],
-                        class_metrics_kws['total_edge'] + .0004)
+                        1.001 * class_metrics_kws['total_edge'])
 
     def test_multilandscape_plot_metrics(self):
         ml = self.InstantiableMultiLandscape(self.landscape_fps,

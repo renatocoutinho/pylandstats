@@ -5,6 +5,8 @@ from os import path
 
 from setuptools import find_packages, setup
 
+from pylandstats.nb_compute import cc
+
 __version__ = '0.5.0'
 
 classifiers = [
@@ -52,4 +54,5 @@ setup(
     install_requires=install_requires,
     extras_require={'geo': geo},
     dependency_links=dependency_links,
+    ext_modules=[cc.distutils_extension()],
 )
