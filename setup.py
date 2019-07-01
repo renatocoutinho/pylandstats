@@ -1,12 +1,10 @@
 # coding=utf-8
 
-from distutils.command.build_ext import build_ext
-from distutils.sysconfig import customize_compiler
 from io import open  # compatible enconding parameter
 from os import path
 
-from setuptools import find_packages, setup
-from utils import cc
+from pythran.dist import PythranBuildExt, PythranExtension
+from setuptools import dist, find_packages, setup
 
 __version__ = '0.5.0'
 
@@ -39,21 +37,8 @@ dependency_links = [
     x.strip().replace('git+', '') for x in all_reqs if x.startswith('git+')
 ]
 
-
-# Avoid a gcc warning (see https://stackoverflow.com/questions/8106258/cc1plus-
-# warning-command-line-option-wstrict-prototypes-is-valid-for-ada-c-o):
-# cc1plus: warning: command line option ‘-Wstrict-prototypes’ is valid
-# for C/ObjC but not for C++
-# See also: https://github.com/numba/numba/issues/3361
-class BuildExt(build_ext):
-    def build_extensions(self):
-        customize_compiler(self.compiler)
-        try:
-            self.compiler.compiler_so.remove("-Wstrict-prototypes")
-        except (AttributeError, ValueError):
-            pass
-        build_ext.build_extensions(self)
-
+# This is required to be able to use pythran in setup.py
+dist.Distribution(dict(setup_requires='pythran'))
 
 setup(
     name='pylandstats',
@@ -71,6 +56,8 @@ setup(
     install_requires=install_requires,
     extras_require={'geo': geo},
     dependency_links=dependency_links,
-    cmdclass={'build_ext': BuildExt},
-    ext_modules=[cc.distutils_extension()],
+    ext_modules=[
+        PythranExtension('pylandstats_compute', ['pylandstats/compute.py'])
+    ],
+    cmdclass={'build_ext': PythranBuildExt},
 )
