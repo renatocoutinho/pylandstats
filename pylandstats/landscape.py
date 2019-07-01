@@ -9,7 +9,7 @@ import pandas as pd
 import rasterio
 from scipy import ndimage, spatial, stats
 
-from . import nb_compute
+import pylandstats_compute as pls_compute
 
 __all__ = ['Landscape']
 
@@ -385,12 +385,12 @@ class Landscape:
             # pad the reclassified array with the nodata value (i.e.,
             # `num_classes` see comment above). Set dtype to `np.uint32` to
             # match the numba method signature of
-            # `nb_compute.compute_adjacency_arr`
+            # `pylandstats_compute.compute_adjacency_arr`
             padded_arr = np.pad(reclassified_arr, pad_width=1, mode='constant',
                                 constant_values=num_classes).astype(np.uint32)
 
             # compute the adjacency array
-            adjacency_arr = nb_compute.compute_adjacency_arr(
+            adjacency_arr = pls_compute.compute_adjacency_arr(
                 padded_arr, num_classes)  # .sum(axis=0)
 
             # put the adjacency array in the form of a pandas DataFrame
