@@ -36,6 +36,28 @@ dependency_links = [
     x.strip().replace('git+', '') for x in all_reqs if x.startswith('git+')
 ]
 
+
+# Lazy trick to make sure numba gets imported _after_ it's installed from
+# setup_requires. From https://github.com/numba/numba/issues/2718
+class LazyExtensions(list):
+    def __init__(self):
+        super(LazyExtensions, self).__init__()
+        self.__extensions = None
+
+    @property
+    def _extensions(self):
+        if self.__extensions is None:
+            from pylandstats.nb_compute import cc
+            self.__extensions = [cc.distutils_extension()]
+        return self.__extensions
+
+    def __len__(self):
+        return len(self._extensions)
+
+    def __iter__(self):
+        yield from self._extensions
+
+
 setup(
     name='pylandstats',
     version=__version__,
@@ -52,4 +74,6 @@ setup(
     install_requires=install_requires,
     extras_require={'geo': geo},
     dependency_links=dependency_links,
+    setup_requires=['numba', 'numpy'],
+    ext_modules=LazyExtensions(),
 )
